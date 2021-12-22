@@ -1,0 +1,153 @@
+pragma solidity >= 0.5.2 < 0.7.0; //SPDX-License-Identifier: UNLICENSED
+
+contract ownable {
+    struct User {
+    uint balance;    
+    bytes32 pwhash;
+    bool role;
+}
+mapping (address => User) public users;
+address[] public userlist;
+   // количество администраторов
+   uint public admin_amount;
+   
+   // предложение на повышение роли
+   struct BoostOffer {
+       address to_boost;
+       address[] proc;  // голоса ЗА
+       address cons;  // голоса ПРОТИВ
+       bool finished;  // завершилось ли голосование
+   }
+
+   mapping (uint => BoostOffer) public boosts;  // все предложения на повышение
+   uint public offer_amount;
+   
+        modifier OnlyOwner() {
+        require(users[msg.sender].role, "error: you are not admin"); // ошибка "вы не админ"
+        _;
+    }
+    // предложить пользователя на роль администратора
+    function offer_user_to_boost(address user_adr) public OnlyOwner {
+        require(users[user_adr].pwhash !=0, "error: user doesn't exist");  // пользователь не существует
+        require(users[user_adr].role == false, "error: already admin");  // уже и так администратор
+        address[] memory zerroArray;
+        boosts[offer_amount] = BoostOffer(user_adr, zerroArray, address(0), false);
+        boosts[offer_amount].proc.push(msg.sender);
+        offer_amount += 1;
+    }
+     // получить список голосов заново
+    function get_proc(uint offer_id) public view returns(address[] memory) {
+       return boosts[offer_id].proc;
+     }
+       // может ли данный пользователь проголосовать
+       modifier checkVote(uint offer_id) {     // проверяем не проголосовал ли пользователь уже
+       bool vote = false;
+       for (uint i = 0; i < boosts[offer_id].proc.length; i++) {
+           if (boosts[offer_id].proc[i] == msg.sender) {
+               vote = true;
+               break;
+           }
+       }
+       require(vote == false, "error: already voted");  // ошибка, уже проголосовали
+       _;
+    }
+
+    function check_offer(uint offer_id) public {  // проверить что голосование успешно завершено, назначить нового администратор
+    if (boosts[offer_id].proc.length == admin_amount) {
+        boosts[offer_id].finished = true;
+        address user_adr = boosts[offer_id]. to_boost;
+        users[user_adr].role = true;
+        admin_amount += 1;
+        
+    }
+}
+    // голосуем за
+    function vote_for(uint offer_id) public OnlyOwner checkVote(offer_id) {
+        require(boosts[offer_id].finished == false, "error: already finished");  // уже завершено
+        boosts[offer_id].proc.push(msg.sender);
+        check_offer(offer_id);
+    }
+    
+    // голусем ПРОТИВ
+    function vote_against(uint offer_id) public OnlyOwner checkVote(offer_id) {
+        require(boosts[offer_id].finished == false, "error: already finished");  // уже завершено
+        boosts[offer_id].cons = msg.sender;
+        boosts[offer_id].finished = true;
+        
+    }
+}
+
+
+
+contract feed is ownable {
+struct Transfer {
+    address adr_from; // адрес отправителя
+    address adr_to;   // адрес получателя
+    uint value;        // сумма перевода
+    string description;  // описание перевода
+    bytes32 pwhash;     // хеш keccak256 кодового слова
+    uint time;          // время
+    bool finished;        // завершен или нет
+}
+
+    mapping(uint => Transfer) public transfers;
+    uint public transfers_amount;
+    //создать перевод
+    function create_transfer(address adr_to, uint value, string memory description, bytes32 pwhash) public {
+        require(users[msg.sender].balance >= value,"not enought money"); // ошибка недостаточно средств
+        require(value >0, "error: wrong value"); // неверная сумма 
+        require(msg.sender != adr_to, "error: transfer to yourself"); // перевод самому себе
+        require(users[adr_to].pwhash !=0, "error: user doesh't exist"); // пользователь не существует
+        transfers[transfers_amount] = Transfer(msg.sender, adr_to, value, description, pwhash, 0, false);
+        transfers_amount += 1;
+        users[msg.sender].balance -= value; // уменьшаем баланс отправителя
+        users[adr_to].balance += value;
+        }
+    //отменить перевод
+    function stop_my_transfer(uint tr_id) public {
+           require(transfers[tr_id].adr_from == msg.sender, "error: it's not your transfers"); // нельзя отменить чужой перевод
+           require(transfers[tr_id].finished == false, "error: already finished");  // деньги уже приняты или перевод уже отменен
+           transfers[tr_id].finished = true;
+           users[msg.sender]. balance += transfers[tr_id].value;
+        }
+    // получить перевод, используя кодовое слово
+         function get_my_transfer(uint tr_id, string memory pw) public {
+             require(transfers[tr_id].adr_to == msg.sender, "error: not for you");   // перевод не для вас
+             require(transfers[tr_id].finished == false, "error: already finished");    // деньгт уже приняты или перевод уже отменен
+             bytes32 pwhash = keccak256(abi.encodePacked(pw));   // преобразовываем кодовое слово в байты и хешируем его
+          
+          if (pwhash == transfers[tr_id].pwhash) {
+              users[msg.sender].balance += transfers[tr_id].value;
+              transfers[tr_id].time = block.timestamp;
+          }   
+          else {
+              address adr_from = transfers[tr_id].adr_from;
+              users[adr_from].balance += transfers[tr_id].value;
+          }
+          transfers[tr_id].finished = true;
+        }
+        function get_balance() public view returns(uint balance) {
+            return users[msg.sender].balance;
+        }
+}
+
+
+
+contract Money is feed {
+	constructor() public payable {
+        admin_amount = 2;
+        users[0x5B38Da6a701c568545dCfcB03FcB875f56beddC4] = User(1000, 0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107, true);
+        users[0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2] = User(1000, 0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107, true);
+        users[0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c] = User(1000, 0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107, false);
+        users[0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db] = User(1000, 0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107, false);
+        users[0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB] = User(1000, 0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107, false);
+        users[0x617F2E2fD72FD9D5503197092aC168c91465E7f2] = User(1000, 0x64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107, false);
+            
+        userlist.push(0x5B38Da6a701c568545dCfcB03FcB875f56beddC4);
+        userlist.push(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
+        userlist.push(0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c);
+        userlist.push(0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db);
+        userlist.push(0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB);
+        userlist.push(0x617F2E2fD72FD9D5503197092aC168c91465E7f2);
+	}
+}
