@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Купля/Продажа имущества</title>
+    <link rel="stylesheet" type="text/css" href="ish/main.css">
+    <script src="js/web3.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Регистрация здания</h1>
+        <span id="countIns"></span><br>
+		<span id="andrey"></span>
+        <h2 id="instructor"></h2>
+        <span id="insTrans"></span>
+        <hr>
+        <img id="loader" src="https://loading.io/mod/spinner/balls/index.svg">
+        
+       
+
+        <label for="ADRESS" class="col-lg-2 control-label">Адрес</label>
+        <input id="ADRESS" type="text">
+        <label for="RAZMER" class="col-lg-2 control-label">Размер помещения</label>
+        <input id="RAZMER" type="text">
+        <label for="TIPZONA" class="col-lg-2 control-label">Тип зоны</label>
+        <input id="TIPZONA" type="text">
+        <label for="PRICE" class="col-lg-2 control-label">Цена</label>
+        <input id="PRICE" type="text">
+
+        <button id="registr">Зарегистрировать сделку</button>
+        <button id="infa">Получить информацию</button>
+    </div>
+        <button id="change">Сменить владельца</button>
+        <button id="buy">Выкупить</button>
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
+	<script>
+if (typeof web3 !== 'undefined') {
+        web3 = new Web3(web3.currentProvider);
+    } else {
+        // устанавливаем подключение к ноде
+        web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
+    }
+
+if (typeof web3 !== 'undefined') {
+    web3 = new Web3(web3.currentProvider);
+} else {
+    // устанавливаем подключение к ноде
+    web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
+}
+
+if (web3.isConnected()) {
+    console.log('нода подключилась');
+} else {
+    console.log('нода отключена');
+}
+
+
+    var Abi = web3.eth.contract([
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "infoaccount",
+		"outputs": [
+			{
+				"name": "",
+				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_newowner",
+				"type": "address"
+			}
+		],
+		"name": "TransferOwners",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "_address",
+				"type": "address"
+			}
+		],
+		"name": "getInfoAbout",
+		"outputs": [
+			{
+				"name": "",
+				"type": "string"
+			},
+			{
+				"name": "",
+				"type": "uint256"
+			},
+			{
+				"name": "",
+				"type": "string"
+			},
+			{
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_address",
+				"type": "address"
+			},
+			{
+				"name": "_adress",
+				"type": "string"
+			},
+			{
+				"name": "_Razmer",
+				"type": "uint256"
+			},
+			{
+				"name": "_tip_zoni",
+				"type": "string"
+			},
+			{
+				"name": "_price",
+				"type": "uint256"
+			}
+		],
+		"name": "infovvod",
+		"outputs": [],
+		"payable": true,
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"name": "adress",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"name": "Razmer",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"name": "tip_zoni",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"name": "price",
+				"type": "uint256"
+			}
+		],
+		"name": "InfoAbout",
+		"type": "event"
+	}
+]);
+
+  
+var i = prompt(i); //выбераем какой по счету аккаунт используем
+
+    var accounts = web3.eth.accounts;
+    var passPhrase = '131210';
+    web3.personal.unlockAccount(accounts[0], passPhrase, 50000);
+    web3.personal.unlockAccount(accounts[1], passPhrase, 50000);
+    console.log(accounts[i]);
+    web3.eth.defaultAccount = accounts[i];
+
+setTimeout(function() {
+    unlock();
+    console.log("ОКЕЙ")
+}, 10000);
+
+
+
+    var AndreyInstall = Abi.at('0x87354C9659de7623b12A044De5E68e36D3Da1d12');
+    var infoEvent = AndreyInstall.InfoAbout({}, 'latest');
+
+ /*   infoEvent.watch(function(error, result) {
+        if (result) {
+            if (result.blockHash != $("#insTrans").html())
+            $("#insTrans").html('Хеш блока: ' + result.blockHash);
+            $("#instructor").html((result.args.adress) + ' ' + (result.args.Razmer) + ' кв. м, Тип зоны: ' + result.args.tip_zoni + ' ' + (result.args.price) + ' ');
+        } else {
+            console.log(error);
+        }
+    });*/
+
+    //оплата 
+    $("#buy").click(function() {
+    var account_pay = prompt("Введите аккаунт для списания: ", account_pay);
+    var account_send = prompt("Введите аккаунт для зачисления: ", account_send);
+    var money = prompt("Введите сумму для перевода: ", money);
+    var pass = prompt("Введите пароль для разблокировки кошелька", pass)
+    web3.personal.unlockAccount(web3.eth.accounts[account_pay], pass);
+    web3.eth.sendTransaction({
+        from: web3.eth.accounts[account_pay],
+        to: web3.eth.accounts[account_send],
+        value: web3.toWei(money, "ether")
+    })
+});
+
+  // Получаем информацию
+
+$("#infa").click(function() {
+
+    AndreyInstall.getInfoAbout(web3.eth.defaultAccount, (no, oke) => {
+       $("#andrey").html('Адрес здания: '+ oke[0] +'');  
+       
+    });
+});
+
+// Получаем информацию 
+//ps смотри поля дивов куда выгружаешь инфу, например я выгружаю сюда <span id="andrey"></span>
+//это массив oke[0] итд
+
+
+
+    // смена админа
+	$("#change").click(function() {
+    $("#loader").show();
+    var a = prompt("Какому аккаунту передаем право владения контрактом");
+    web3.defaultAccount = web3.eth.accounts[a];
+    console.log(a);
+    AndreyInstall.transferOwnership(a, (no, oke) => {
+        console.log(oke);
+        if (oke) {
+        	console.log("успешно");
+        	console.log(web3.defaultAccount);
+            $("#instructor").show();
+            $("#instructor").html('<font color = "green">Владелец успешно изменен. Транзакция прошла успешно</font>');
+            $("#loader").hide();
+        }
+        if (no) {
+        	console.log("ошибка");
+        	console.log(web3.defaultAccount);
+            $("#instructor").hide();
+            $("#instructordanger").show();
+            $("#instructordanger").html('<font color = "red">Ошибка смены владельца</font>');
+            $("#loader").hide();
+        }
+    });
+});
+
+
+
+$("#registr").click(function() {
+
+
+//соблюдаем очередность полей
+AndreyInstall.infovvod(web3.eth.defaultAccount, $("#ADRESS").val(), $("#RAZMER").val(), $("#TIPZONA").val(), $("#PRICE").val(), (err, res) => {
+
+if (res) {
+
+	 	console.log("успешно ушло в блокчейн"); //проверка отправки результата
+}
+            if (err) {
+                $("#loader").hide();
+                console.log('Ошибка прав');
+            }
+       });
+    });
+    </script>
+</body>
+
+</html>
